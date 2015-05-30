@@ -1,0 +1,376 @@
+
+Parsing YAML in Elixir
+======================
+
+.. contents::
+    :depth: 2
+    :local:
+
+.. author:: default
+.. categories:: none
+.. tags:: elixir functional yaml
+.. comments::
+
+After writing PHP, Ruby and CoffeeScript for the last years, I wanted to extend
+my “portfolio” with an actual functional programming language. Haskell and
+Elixir were on the plate and the latter made the race thanks to some very
+compelling features; especially `pattern matching`_ and what it enables in the
+language.
+
+Reading `Introducing Elixir (O’Reilly)`_ and watching talks from `ElixirConf`_
+led me to trying to port some of my smaller projects to Elixir to gather some
+actual experience. I usually use YAML as configuration format, so loading YAML
+files is the first, natural thing to try.
+
+It turned out to be pleasently easy - all the way from dependency management to
+building.
+
+.. more::
+
+Asking my search engine, I found two possible libraries to use for parsing YAML
+in Erlang/Elixir:
+
+``yamerl``
+  https://github.com/yakaz/yamerl
+
+  is a complete YAML parser implementation in Erlang with no dependencies other
+  than OTP.
+
+``yamler``
+  https://github.com/goertzenator/yamler
+
+  embeds the C yaml parser `libyaml` which is compiled as a `NIF`_.
+
+Since I could not decide which of the libraries to use only by looking at their
+documentation, I tried both of them.
+
+But before that, I had to find out how to incorporate them into a new
+application created by mix:
+
+``mix`` works
+-------------
+
+``mix`` is a powerful build tool that *actually* works. Coming from Ruby, it
+reminds me a lot of ``rake``, but it is faster, more intuitive (for me) and
+also handles dependencies (like ``bundler``).
+
+Following the guide `“Introduction to Mix”`_, ``mix new config_files`` creates
+a project with all the necessary files and folders::
+
+  ~/elixir % tree config_files
+  config_files
+  ├── README.md
+  ├── config
+  │   └── config.exs
+  ├── lib
+  │   └── config_files.ex
+  ├── mix.exs
+  └── test
+      ├── config_files_test.exs
+      └── test_helper.exs
+
+  3 directories, 6 files
+
+The generated file ``mix.exs`` has a function ``deps`` which returns list of
+dependencies (used in the ``project`` function). To this list, I just add a
+tuple of dependency name and source (``{:name, <source type>: "source"}``). In
+this case the dependencies are checked out via git, so the configuration is
+just ``git: <REPO>``::
+
+  defmodule ConfigFiles.Mixfile do
+    # ...
+    defp deps do
+      [{:yamerl, git: "https://github.com/yakaz/yamerl.git"},
+       {:yamler, git: "https://github.com/goertzenator/yamler"}]
+    end
+  end
+
+To see all available ``mix`` tasks, just invoke it without arguments::
+
+  ~/elixir/config_files % mix
+  # ...
+  mix deps              # List dependencies and their status
+  mix deps.clean        # Remove the given dependencies' files
+  mix deps.compile      # Compile dependencies
+  mix deps.get          # Get all out of date dependencies
+  mix deps.unlock       # Unlock the given dependencies
+  mix deps.update       # Update the given dependencies
+  # ...
+
+Listing all defined dependencies defined in ``mix.exs`` is done by invoking
+
+``mix deps``::
+
+  ~/elixir/config_files % mix deps
+  * yamler (git://github.com/goertzenator/yamler.git)
+    locked at c0ec227
+    the dependency is not available, run `mix deps.get`
+  * yamerl (https://github.com/yakaz/yamerl.git)
+    locked at ae810a8
+    the dependency is not available, run `mix deps.get`
+
+The output shows the source name, the repository URL, the commit it will use
+and that ``mix deps.get`` has to be run in order for it to be available.
+``mix deps.get`` does just what it says: get the dependencies. In this
+case it checks out the defined git repositories at the previously locked
+commit::
+
+  ~/elixir/config_files % mix deps.get
+  * Getting yamerl (https://github.com/yakaz/yamerl.git)
+  Cloning into '/Users/apanek/elixir/config_files/deps/yamerl'...
+  # …
+  * Getting yamler (git://github.com/goertzenator/yamler.git)
+  Cloning into '/Users/apanek/elixir/config_files/deps/yamler'...
+  # …
+
+But wait! ``mix`` is also able to *build* the dependencies::
+
+  ~/elixir/config_files % mix deps.compile
+  ==> yamler (compile)
+  Compiled src/yaml_schema.erl
+  Compiled src/yaml_schema_failsafe.erl
+  # …
+  Compiling c_src/libyaml/parser.c
+  Compiling c_src/libyaml/reader.c
+  Compiling c_src/libyaml/scanner.c
+  ==> yamerl (compile)
+  Compiled src/yamerl_sup.erl
+  Compiled src/yamerl_yamler_compat.erl
+  # …
+  Compiled src/yamerl_constr.erl
+
+To sum this up: ``mix deps.get`` and ``mix deps.compile`` have downloaded and
+built the sources into the ``deps/`` folder::
+
+  ~/elixir/config_files % tree deps/ -d -L 2
+  deps/
+  ├── yamerl
+  │   ├── debian
+  │   ├── doc
+  │   ├── ebin
+  │   ├── include
+  │   ├── m4
+  │   ├── src
+  │   └── testsuite
+  └── yamler
+      ├── c_src
+      ├── doc
+      ├── ebin
+      ├── priv
+      ├── src
+      └── test
+
+  15 directories
+
+These dependencies can now be used in an Elixir REPL by invoking ``iex -S mix``
+(``-S "script" Finds and executes the given script``). ``mix`` then takes care
+of dependency loading or making them available.
+
+Using ``yamerl``
+----------------
+
+``yamerl`` is a pure Erlang implementation of YAML. This library has no
+dependencies other than OTP, which is available anyways. This also means that
+there are no issues with dependencies for building “native extensions” like in
+Ruby.
+
+To test the library, I fired up ``iex`` and followed `the documentation`_:
+
+``yamerl`` is an `OTP application`_, which means it has to be loaded to be able
+to use it. In Erlang this looks as follows::
+
+  application:start(yamerl).
+
+``application`` is an Erlang/OTP module which in Elixir is aliased to
+``Application``::
+
+  Application.start(:yamerl)
+
+Behind the scenes, this is nothing more than a simple `alias`_::
+
+  iex(5)> :application
+  :application
+  iex(6)> alias :application, as: App
+  nil
+  iex(7)> App
+  :application
+
+Now, putting this to work, paste it into a REPL to test it::
+
+  ~/erlang/config_files % iex -S mix
+  Erlang/OTP 17 [erts-6.4] [source] [64-bit] [smp:2:2] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+  Compiled lib/config_files.ex
+  Generated config_files app
+  Interactive Elixir (1.0.4) - press Ctrl+C to exit (type h() ENTER for help)
+  iex(1)> Application.start(:yamerl)
+  :ok
+
+After loading the OTP application, ``yamerl`` exposes a few Erlang modules
+(accessible as `atoms`_ in Elixir)::
+
+  iex(1)> :yamerl_
+  yamerl_app                 yamerl_constr
+  yamerl_errors              yamerl_node_bool
+  yamerl_node_bool_ext       yamerl_node_bool_json
+  yamerl_node_erlang_atom    yamerl_node_erlang_fun
+  yamerl_node_float          yamerl_node_float_ext
+  yamerl_node_float_json     yamerl_node_int
+  yamerl_node_int_ext        yamerl_node_int_json
+  yamerl_node_ipaddr         yamerl_node_map
+  yamerl_node_null           yamerl_node_null_json
+  yamerl_node_seq            yamerl_node_size
+  yamerl_node_str            yamerl_node_str_json
+  yamerl_node_timestamp      yamerl_parser
+  yamerl_sup                 yamerl_yamler_compat
+
+Files, strings and streams are parsed with the ``:yamerl_constr`` module using
+the function ``:yamerl_constr.file/1``::
+
+  iex(1)> :yamerl_constr.file("test.yaml")
+  [[[{'application', 'kernel'}, {'version', '2.15.3'},
+     {'path', '/usr/local/lib/erlang/lib/kernel-2.15.3'}],
+    [{'application', 'stdlib'}, {'version', '1.18.3'},
+     {'path', '/usr/local/lib/erlang/lib/stdlib-1.18.3'}],
+    [{'application', 'sasl'}, {'version', '2.2.1'},
+     {'path', '/usr/local/lib/erlang/lib/sasl-2.2.1'}]]]
+
+This is great; given that the file exists *and* is valid. ``yamerl`` throws
+an exception in either case with an exhaustive (that is a *good* thing in
+this case) reason::
+
+  iex(2)> File.exists?("foo")
+  false
+  iex(3)> :yamerl_constr.file("foo")
+  ** (throw) {:yamerl_exception, [{:yamerl_parsing_error, :error, 'Failed to open file "foo": no such file or directory', :undefined, :undefined, :file_open_failure, :undefined, [error: :enoent]}]}
+      (yamerl) src/yamerl_errors.erl:56: :yamerl_errors.throw/1
+      (yamerl) src/yamerl_constr.erl:228: :yamerl_constr.file/2
+
+As said above, the exceptions are very exhaustive in information; in this case
+the important bit of information is that it was unable to open the file:
+``:file_open_failure``, ``[error: :enoent]`` and the human readable version
+``'Failed to open file "foo": no such file or directory'``.
+
+All exceptions share a common format that is well documented in the `module
+function reference`_::
+
+ {yamerl_exception,
+   % List of warnings and errors; here, one fatal error.
+   [
+     % Error #1.
+     {yamerl_parsing_error, error,
+       "Unexpected end-of-stream while parsing flow scalar",          % Human-readable message.
+       1, 10,                                                         % Error location.
+       unexpected_eos,
+       {yamerl_scalar, 1, 1, {yamerl_tag, 1, 1, {non_specific, "!"}}, % Token being parsed.
+         flow, single_quoted,
+         "Oh-oh..."},
+       []
+     }
+   ]
+  }. 
+
+The above is Erlang code, so I looked into how this looks in Elixir with a
+malformed ``test.yaml``::
+
+ iex(5)> :yamerl_constr.file("test.yaml")
+ ** (throw) {:yamerl_exception, [{:yamerl_parsing_error, :error, 'Block mapping value not allowed here', 4, 10, :block_mapping_value_not_allowed, :undefined, []}, {:yamerl_parsing_error, :warning, 'An implicit key must not span several lines', 2, 1, :invalid_implicit_key, :undefined, []}]}
+    (yamerl) src/yamerl_errors.erl:56: :yamerl_errors.throw/1
+    (yamerl) src/yamerl_parser.erl:412: :yamerl_parser.file2/3
+    (yamerl) src/yamerl_constr.erl:228: :yamerl_constr.file/2
+
+This gives information about what error or warning happens in what line, what
+column. This in turn can be passed forth to the user writing the configuration.
+
+But because exceptions brake the control flow of a program (and are considered
+a bad substitute for actual control flow), I created a simple function to
+catch the exception and translate it into an error tuple; one for strings and
+one for files::
+
+  defmodule ConfigFiles do
+    def file (file) do
+      try do
+        {:ok, :yamerl_constr.file(file)}
+      catch
+        {_, error} -> {:error, error}
+      end
+    end
+
+    def parse (str) do
+      try do
+        {:ok, :yamerl_constr.string(str)}
+      catch
+        {_, error} -> {:error, error}
+      end
+    end
+  end
+
+Using ``yamler``
+----------------
+
+After putting ``yamler`` in as dependency, it is loaded automagically when
+invoking ``iex -S mix``. It also exposes a module with a slightly less cryptic
+name: ``:yaml``. Loading a file is straight forward using ``load_file/1``::
+
+  iex(1)> :yaml.load_file("test.yaml")
+  {:ok,
+   [[[{"version", "2.15.3"}, {"application", "kernel"},
+      {"path", "/usr/local/lib/erlang/lib/kernel-2.15.3"}],
+     [{"version", "1.18.3"}, {"application", "stdlib"},
+      {"path", "/usr/local/lib/erlang/lib/stdlib-1.18.3"}],
+     [{"version", "2.2.1"}, {"application", "sasl"},
+      {"path", "/usr/local/lib/erlang/lib/sasl-2.2.1"}]]]}
+
+On error, it returns a tuple with ``:error`` as the first element, just what I
+wanted::
+
+  iex(2)> :yaml.load_file("dasd")
+  {:error, :enoent}
+
+Given a malformed ``test.yaml``, it also returns error information. But as it
+is only a single string, the reusability of the information to pass errors on
+to the user in different forms (or maybe even languages?) is limited::
+
+  iex(6)> :yaml.load_file("test.yaml")
+  {:error,
+   {:scanner,
+     "Scanner error: mapping values are not allowed in this context at line 3, column 14\n"}}
+
+
+Conclusion
+----------
+
+In the end both libraries get the job done, but in different ways.
+Personally, I will probably stick with ``yamerl`` even though its way of
+communicating errors is through exceptions. As it is able to parse different
+versions of YAML, as well as JSON, can also emit files (``yamler`` is
+"read-only") and is written in pure Erlang with no dependencies. ``yamler``
+comes with its dependencies, the source code of libyaml, so there is no need
+to install or download anything to make it build.
+
+-------
+
+This is the ``test.yaml`` used above, I stole it from the ``yamerl`` README
+file::
+
+  ---
+  - application: kernel
+    version:     2.15.3
+    path:        /usr/local/lib/erlang/lib/kernel-2.15.3
+  - application: stdlib
+    version:     1.18.3
+    path:        /usr/local/lib/erlang/lib/stdlib-1.18.3
+  - application: sasl
+    version:     2.2.1
+    path:        /usr/local/lib/erlang/lib/sasl-2.2.1
+
+.. _Introducing Elixir (O’Reilly): http://shop.oreilly.com/product/0636920030584.do
+.. _ElixirConf: http://confreaks.tv/events/elixirconf2014
+.. _pattern matching: http://elixir-lang.org/getting-started/pattern-matching.html
+.. _“Introduction to Mix”: http://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html
+.. _the documentation: https://github.com/yakaz/yamerl#getting-started
+.. _OTP application: http://www.erlang.org/doc/design_principles/applications.html
+.. _alias: http://elixir-lang.org/getting-started/alias-require-and-import.html#alias
+.. _atoms: http://elixir-lang.org/getting-started/basic-types.html#atoms
+.. _NIF: http://erlang.org/doc/tutorial/nif.html
+.. _module function reference: https://github.com/yakaz/yamerl/blob/master/doc/reference-manual/module-yamerl_constr.md

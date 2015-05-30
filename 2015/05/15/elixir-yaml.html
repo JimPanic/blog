@@ -1,0 +1,445 @@
+<!DOCTYPE html><!--[if lt IE 7]>      <html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:og="http://ogp.me/ns#"
+    xmlns:fb="https://www.facebook.com/2008/fbml" class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:og="http://ogp.me/ns#"
+    xmlns:fb="https://www.facebook.com/2008/fbml" class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:og="http://ogp.me/ns#"
+    xmlns:fb="https://www.facebook.com/2008/fbml" class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:og="http://ogp.me/ns#"
+    xmlns:fb="https://www.facebook.com/2008/fbml" class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+        <title>Parsing YAML in Elixir &mdash; panic</title>
+            <link rel="stylesheet" href="../../../_static/normalize.css" type="text/css">
+            <link rel="stylesheet" href="../../../_static/sphinx.css" type="text/css">
+            <link rel="stylesheet" href="../../../_static/main.css" type="text/css">
+            <link rel="stylesheet" href="../../../_static/flat.css" type="text/css">
+            <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+            <link rel="stylesheet" href="../../../_static/font-awesome.min.css" type="text/css">
+        <link rel="shortcut icon" href="../../../_static/tinkerer.ico" /><!-- Load modernizr and JQuery -->
+        <script src="../../../_static/vendor/modernizr-2.6.2.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="../../../_static/vendor/jquery-1.8.2.min.js"><\/script>')</script>
+        <script src="../../../_static/plugins.js"></script>
+        <script src="../../../_static/main.js"></script>
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="../../../rss.html" /><script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script><script type="text/javascript" src="../../../_static/underscore.js"></script><script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // Scroll to content if on small screen
+            if (screen.width < 480)
+            {
+                $(document).scrollTop(document.getElementsByTagName("article")[0].offsetTop - 44);
+            }
+        });
+    </script></head>
+    <body role="document">
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+        <![endif]-->
+
+      <div id="container"><header role="banner">
+            <hgroup>
+              <h1><a href="../../../index.html">panic</a></h1><h2>functional, sorta.</h2></hgroup>
+          </header>
+      <nav role="navigation">
+            <ul><li class="main-nav">
+                  <a href="../../../index.html">Home</a>
+                </li>
+              </ul>
+          </nav><div class="main-container" role="main"><div class="main wrapper body clearfix"><article><div class="timestamp postmeta">
+            <span>May 15, 2015</span>
+        </div>
+    <div class="section" id="parsing-yaml-in-elixir">
+<h1>Parsing YAML in Elixir</h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#mix-works" id="id1"><span class="docutils literal"><span class="pre">mix</span></span> works</a></li>
+<li><a class="reference internal" href="#using-yamerl" id="id2">Using <span class="docutils literal"><span class="pre">yamerl</span></span></a></li>
+<li><a class="reference internal" href="#using-yamler" id="id3">Using <span class="docutils literal"><span class="pre">yamler</span></span></a></li>
+<li><a class="reference internal" href="#conclusion" id="id4">Conclusion</a></li>
+</ul>
+</div>
+<p>After writing PHP, Ruby and CoffeeScript for the last years, I wanted to extend
+my “portfolio” with an actual functional programming language. Haskell and
+Elixir were on the plate and the latter made the race thanks to some very
+compelling features; especially <a class="reference external" href="http://elixir-lang.org/getting-started/pattern-matching.html">pattern matching</a> and what it enables in the
+language.</p>
+<p>Reading <a class="reference external" href="http://shop.oreilly.com/product/0636920030584.do">Introducing Elixir (O’Reilly)</a> and watching talks from <a class="reference external" href="http://confreaks.tv/events/elixirconf2014">ElixirConf</a>
+led me to trying to port some of my smaller projects to Elixir to gather some
+actual experience. I usually use YAML as configuration format, so loading YAML
+files is the first, natural thing to try.</p>
+<p>It turned out to be pleasently easy - all the way from dependency management to
+building.</p>
+<div id="more"> </div><p>Asking my search engine, I found two possible libraries to use for parsing YAML
+in Erlang/Elixir:</p>
+<dl class="docutils">
+<dt><span class="docutils literal"><span class="pre">yamerl</span></span></dt>
+<dd><p class="first"><a class="reference external" href="https://github.com/yakaz/yamerl">https://github.com/yakaz/yamerl</a></p>
+<p class="last">is a complete YAML parser implementation in Erlang with no dependencies other
+than OTP.</p>
+</dd>
+<dt><span class="docutils literal"><span class="pre">yamler</span></span></dt>
+<dd><p class="first"><a class="reference external" href="https://github.com/goertzenator/yamler">https://github.com/goertzenator/yamler</a></p>
+<p class="last">embeds the C yaml parser <cite>libyaml</cite> which is compiled as a <a class="reference external" href="http://erlang.org/doc/tutorial/nif.html">NIF</a>.</p>
+</dd>
+</dl>
+<p>Since I could not decide which of the libraries to use only by looking at their
+documentation, I tried both of them.</p>
+<p>But before that, I had to find out how to incorporate them into a new
+application created by mix:</p>
+<div class="section" id="mix-works">
+<h2><a class="toc-backref" href="#id1"><span class="docutils literal"><span class="pre">mix</span></span> works</a></h2>
+<p><span class="docutils literal"><span class="pre">mix</span></span> is a powerful build tool that <em>actually</em> works. Coming from Ruby, it
+reminds me a lot of <span class="docutils literal"><span class="pre">rake</span></span>, but it is faster, more intuitive (for me) and
+also handles dependencies (like <span class="docutils literal"><span class="pre">bundler</span></span>).</p>
+<p>Following the guide <a class="reference external" href="http://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html">“Introduction to Mix”</a>, <span class="docutils literal"><span class="pre">mix</span> <span class="pre">new</span> <span class="pre">config_files</span></span> creates
+a project with all the necessary files and folders:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir % tree config_files
+config_files
+├── README.md
+├── config
+│   └── config.exs
+├── lib
+│   └── config_files.ex
+├── mix.exs
+└── test
+    ├── config_files_test.exs
+    └── test_helper.exs
+
+3 directories, 6 files
+</pre></div>
+</div>
+<p>The generated file <span class="docutils literal"><span class="pre">mix.exs</span></span> has a function <span class="docutils literal"><span class="pre">deps</span></span> which returns list of
+dependencies (used in the <span class="docutils literal"><span class="pre">project</span></span> function). To this list, I just add a
+tuple of dependency name and source (<span class="docutils literal"><span class="pre">{:name,</span> <span class="pre">&lt;source</span> <span class="pre">type&gt;:</span> <span class="pre">&quot;source&quot;}</span></span>). In
+this case the dependencies are checked out via git, so the configuration is
+just <span class="docutils literal"><span class="pre">git:</span> <span class="pre">&lt;REPO&gt;</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>defmodule ConfigFiles.Mixfile do
+  # ...
+  defp deps do
+    [{:yamerl, git: &quot;https://github.com/yakaz/yamerl.git&quot;},
+     {:yamler, git: &quot;https://github.com/goertzenator/yamler&quot;}]
+  end
+end
+</pre></div>
+</div>
+<p>To see all available <span class="docutils literal"><span class="pre">mix</span></span> tasks, just invoke it without arguments:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir/config_files % mix
+# ...
+mix deps              # List dependencies and their status
+mix deps.clean        # Remove the given dependencies&#39; files
+mix deps.compile      # Compile dependencies
+mix deps.get          # Get all out of date dependencies
+mix deps.unlock       # Unlock the given dependencies
+mix deps.update       # Update the given dependencies
+# ...
+</pre></div>
+</div>
+<p>Listing all defined dependencies defined in <span class="docutils literal"><span class="pre">mix.exs</span></span> is done by invoking</p>
+<p><span class="docutils literal"><span class="pre">mix</span> <span class="pre">deps</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir/config_files % mix deps
+* yamler (git://github.com/goertzenator/yamler.git)
+  locked at c0ec227
+  the dependency is not available, run `mix deps.get`
+* yamerl (https://github.com/yakaz/yamerl.git)
+  locked at ae810a8
+  the dependency is not available, run `mix deps.get`
+</pre></div>
+</div>
+<p>The output shows the source name, the repository URL, the commit it will use
+and that <span class="docutils literal"><span class="pre">mix</span> <span class="pre">deps.get</span></span> has to be run in order for it to be available.
+<span class="docutils literal"><span class="pre">mix</span> <span class="pre">deps.get</span></span> does just what it says: get the dependencies. In this
+case it checks out the defined git repositories at the previously locked
+commit:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir/config_files % mix deps.get
+* Getting yamerl (https://github.com/yakaz/yamerl.git)
+Cloning into &#39;/Users/apanek/elixir/config_files/deps/yamerl&#39;...
+# …
+* Getting yamler (git://github.com/goertzenator/yamler.git)
+Cloning into &#39;/Users/apanek/elixir/config_files/deps/yamler&#39;...
+# …
+</pre></div>
+</div>
+<p>But wait! <span class="docutils literal"><span class="pre">mix</span></span> is also able to <em>build</em> the dependencies:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir/config_files % mix deps.compile
+==&gt; yamler (compile)
+Compiled src/yaml_schema.erl
+Compiled src/yaml_schema_failsafe.erl
+# …
+Compiling c_src/libyaml/parser.c
+Compiling c_src/libyaml/reader.c
+Compiling c_src/libyaml/scanner.c
+==&gt; yamerl (compile)
+Compiled src/yamerl_sup.erl
+Compiled src/yamerl_yamler_compat.erl
+# …
+Compiled src/yamerl_constr.erl
+</pre></div>
+</div>
+<p>To sum this up: <span class="docutils literal"><span class="pre">mix</span> <span class="pre">deps.get</span></span> and <span class="docutils literal"><span class="pre">mix</span> <span class="pre">deps.compile</span></span> have downloaded and
+built the sources into the <span class="docutils literal"><span class="pre">deps/</span></span> folder:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/elixir/config_files % tree deps/ -d -L 2
+deps/
+├── yamerl
+│   ├── debian
+│   ├── doc
+│   ├── ebin
+│   ├── include
+│   ├── m4
+│   ├── src
+│   └── testsuite
+└── yamler
+    ├── c_src
+    ├── doc
+    ├── ebin
+    ├── priv
+    ├── src
+    └── test
+
+15 directories
+</pre></div>
+</div>
+<p>These dependencies can now be used in an Elixir REPL by invoking <span class="docutils literal"><span class="pre">iex</span> <span class="pre">-S</span> <span class="pre">mix</span></span>
+(<span class="docutils literal"><span class="pre">-S</span> <span class="pre">&quot;script&quot;</span> <span class="pre">Finds</span> <span class="pre">and</span> <span class="pre">executes</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">script</span></span>). <span class="docutils literal"><span class="pre">mix</span></span> then takes care
+of dependency loading or making them available.</p>
+</div>
+<div class="section" id="using-yamerl">
+<h2><a class="toc-backref" href="#id2">Using <span class="docutils literal"><span class="pre">yamerl</span></span></a></h2>
+<p><span class="docutils literal"><span class="pre">yamerl</span></span> is a pure Erlang implementation of YAML. This library has no
+dependencies other than OTP, which is available anyways. This also means that
+there are no issues with dependencies for building “native extensions” like in
+Ruby.</p>
+<p>To test the library, I fired up <span class="docutils literal"><span class="pre">iex</span></span> and followed <a class="reference external" href="https://github.com/yakaz/yamerl#getting-started">the documentation</a>:</p>
+<p><span class="docutils literal"><span class="pre">yamerl</span></span> is an <a class="reference external" href="http://www.erlang.org/doc/design_principles/applications.html">OTP application</a>, which means it has to be loaded to be able
+to use it. In Erlang this looks as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>application:start(yamerl).
+</pre></div>
+</div>
+<p><span class="docutils literal"><span class="pre">application</span></span> is an Erlang/OTP module which in Elixir is aliased to
+<span class="docutils literal"><span class="pre">Application</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>Application.start(:yamerl)
+</pre></div>
+</div>
+<p>Behind the scenes, this is nothing more than a simple <a class="reference external" href="http://elixir-lang.org/getting-started/alias-require-and-import.html#alias">alias</a>:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(5)&gt; :application
+:application
+iex(6)&gt; alias :application, as: App
+nil
+iex(7)&gt; App
+:application
+</pre></div>
+</div>
+<p>Now, putting this to work, paste it into a REPL to test it:</p>
+<div class="highlight-python"><div class="highlight"><pre>~/erlang/config_files % iex -S mix
+Erlang/OTP 17 [erts-6.4] [source] [64-bit] [smp:2:2] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Compiled lib/config_files.ex
+Generated config_files app
+Interactive Elixir (1.0.4) - press Ctrl+C to exit (type h() ENTER for help)
+iex(1)&gt; Application.start(:yamerl)
+:ok
+</pre></div>
+</div>
+<p>After loading the OTP application, <span class="docutils literal"><span class="pre">yamerl</span></span> exposes a few Erlang modules
+(accessible as <a class="reference external" href="http://elixir-lang.org/getting-started/basic-types.html#atoms">atoms</a> in Elixir):</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(1)&gt; :yamerl_
+yamerl_app                 yamerl_constr
+yamerl_errors              yamerl_node_bool
+yamerl_node_bool_ext       yamerl_node_bool_json
+yamerl_node_erlang_atom    yamerl_node_erlang_fun
+yamerl_node_float          yamerl_node_float_ext
+yamerl_node_float_json     yamerl_node_int
+yamerl_node_int_ext        yamerl_node_int_json
+yamerl_node_ipaddr         yamerl_node_map
+yamerl_node_null           yamerl_node_null_json
+yamerl_node_seq            yamerl_node_size
+yamerl_node_str            yamerl_node_str_json
+yamerl_node_timestamp      yamerl_parser
+yamerl_sup                 yamerl_yamler_compat
+</pre></div>
+</div>
+<p>Files, strings and streams are parsed with the <span class="docutils literal"><span class="pre">:yamerl_constr</span></span> module using
+the function <span class="docutils literal"><span class="pre">:yamerl_constr.file/1</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(1)&gt; :yamerl_constr.file(&quot;test.yaml&quot;)
+[[[{&#39;application&#39;, &#39;kernel&#39;}, {&#39;version&#39;, &#39;2.15.3&#39;},
+   {&#39;path&#39;, &#39;/usr/local/lib/erlang/lib/kernel-2.15.3&#39;}],
+  [{&#39;application&#39;, &#39;stdlib&#39;}, {&#39;version&#39;, &#39;1.18.3&#39;},
+   {&#39;path&#39;, &#39;/usr/local/lib/erlang/lib/stdlib-1.18.3&#39;}],
+  [{&#39;application&#39;, &#39;sasl&#39;}, {&#39;version&#39;, &#39;2.2.1&#39;},
+   {&#39;path&#39;, &#39;/usr/local/lib/erlang/lib/sasl-2.2.1&#39;}]]]
+</pre></div>
+</div>
+<p>This is great; given that the file exists <em>and</em> is valid. <span class="docutils literal"><span class="pre">yamerl</span></span> throws
+an exception in either case with an exhaustive (that is a <em>good</em> thing in
+this case) reason:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(2)&gt; File.exists?(&quot;foo&quot;)
+false
+iex(3)&gt; :yamerl_constr.file(&quot;foo&quot;)
+** (throw) {:yamerl_exception, [{:yamerl_parsing_error, :error, &#39;Failed to open file &quot;foo&quot;: no such file or directory&#39;, :undefined, :undefined, :file_open_failure, :undefined, [error: :enoent]}]}
+    (yamerl) src/yamerl_errors.erl:56: :yamerl_errors.throw/1
+    (yamerl) src/yamerl_constr.erl:228: :yamerl_constr.file/2
+</pre></div>
+</div>
+<p>As said above, the exceptions are very exhaustive in information; in this case
+the important bit of information is that it was unable to open the file:
+<span class="docutils literal"><span class="pre">:file_open_failure</span></span>, <span class="docutils literal"><span class="pre">[error:</span> <span class="pre">:enoent]</span></span> and the human readable version
+<span class="docutils literal"><span class="pre">'Failed</span> <span class="pre">to</span> <span class="pre">open</span> <span class="pre">file</span> <span class="pre">&quot;foo&quot;:</span> <span class="pre">no</span> <span class="pre">such</span> <span class="pre">file</span> <span class="pre">or</span> <span class="pre">directory'</span></span>.</p>
+<p>All exceptions share a common format that is well documented in the <a class="reference external" href="https://github.com/yakaz/yamerl/blob/master/doc/reference-manual/module-yamerl_constr.md">module
+function reference</a>:</p>
+<div class="highlight-python"><div class="highlight"><pre>{yamerl_exception,
+  % List of warnings and errors; here, one fatal error.
+  [
+    % Error #1.
+    {yamerl_parsing_error, error,
+      &quot;Unexpected end-of-stream while parsing flow scalar&quot;,          % Human-readable message.
+      1, 10,                                                         % Error location.
+      unexpected_eos,
+      {yamerl_scalar, 1, 1, {yamerl_tag, 1, 1, {non_specific, &quot;!&quot;}}, % Token being parsed.
+        flow, single_quoted,
+        &quot;Oh-oh...&quot;},
+      []
+    }
+  ]
+ }.
+</pre></div>
+</div>
+<p>The above is Erlang code, so I looked into how this looks in Elixir with a
+malformed <span class="docutils literal"><span class="pre">test.yaml</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(5)&gt; :yamerl_constr.file(&quot;test.yaml&quot;)
+** (throw) {:yamerl_exception, [{:yamerl_parsing_error, :error, &#39;Block mapping value not allowed here&#39;, 4, 10, :block_mapping_value_not_allowed, :undefined, []}, {:yamerl_parsing_error, :warning, &#39;An implicit key must not span several lines&#39;, 2, 1, :invalid_implicit_key, :undefined, []}]}
+   (yamerl) src/yamerl_errors.erl:56: :yamerl_errors.throw/1
+   (yamerl) src/yamerl_parser.erl:412: :yamerl_parser.file2/3
+   (yamerl) src/yamerl_constr.erl:228: :yamerl_constr.file/2
+</pre></div>
+</div>
+<p>This gives information about what error or warning happens in what line, what
+column. This in turn can be passed forth to the user writing the configuration.</p>
+<p>But because exceptions brake the control flow of a program (and are considered
+a bad substitute for actual control flow), I created a simple function to
+catch the exception and translate it into an error tuple; one for strings and
+one for files:</p>
+<div class="highlight-python"><div class="highlight"><pre>defmodule ConfigFiles do
+  def file (file) do
+    try do
+      {:ok, :yamerl_constr.file(file)}
+    catch
+      {_, error} -&gt; {:error, error}
+    end
+  end
+
+  def parse (str) do
+    try do
+      {:ok, :yamerl_constr.string(str)}
+    catch
+      {_, error} -&gt; {:error, error}
+    end
+  end
+end
+</pre></div>
+</div>
+</div>
+<div class="section" id="using-yamler">
+<h2><a class="toc-backref" href="#id3">Using <span class="docutils literal"><span class="pre">yamler</span></span></a></h2>
+<p>After putting <span class="docutils literal"><span class="pre">yamler</span></span> in as dependency, it is loaded automagically when
+invoking <span class="docutils literal"><span class="pre">iex</span> <span class="pre">-S</span> <span class="pre">mix</span></span>. It also exposes a module with a slightly less cryptic
+name: <span class="docutils literal"><span class="pre">:yaml</span></span>. Loading a file is straight forward using <span class="docutils literal"><span class="pre">load_file/1</span></span>:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(1)&gt; :yaml.load_file(&quot;test.yaml&quot;)
+{:ok,
+ [[[{&quot;version&quot;, &quot;2.15.3&quot;}, {&quot;application&quot;, &quot;kernel&quot;},
+    {&quot;path&quot;, &quot;/usr/local/lib/erlang/lib/kernel-2.15.3&quot;}],
+   [{&quot;version&quot;, &quot;1.18.3&quot;}, {&quot;application&quot;, &quot;stdlib&quot;},
+    {&quot;path&quot;, &quot;/usr/local/lib/erlang/lib/stdlib-1.18.3&quot;}],
+   [{&quot;version&quot;, &quot;2.2.1&quot;}, {&quot;application&quot;, &quot;sasl&quot;},
+    {&quot;path&quot;, &quot;/usr/local/lib/erlang/lib/sasl-2.2.1&quot;}]]]}
+</pre></div>
+</div>
+<p>On error, it returns a tuple with <span class="docutils literal"><span class="pre">:error</span></span> as the first element, just what I
+wanted:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(2)&gt; :yaml.load_file(&quot;dasd&quot;)
+{:error, :enoent}
+</pre></div>
+</div>
+<p>Given a malformed <span class="docutils literal"><span class="pre">test.yaml</span></span>, it also returns error information. But as it
+is only a single string, the reusability of the information to pass errors on
+to the user in different forms (or maybe even languages?) is limited:</p>
+<div class="highlight-python"><div class="highlight"><pre>iex(6)&gt; :yaml.load_file(&quot;test.yaml&quot;)
+{:error,
+ {:scanner,
+   &quot;Scanner error: mapping values are not allowed in this context at line 3, column 14\n&quot;}}
+</pre></div>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2><a class="toc-backref" href="#id4">Conclusion</a></h2>
+<p>In the end both libraries get the job done, but in different ways.
+Personally, I will probably stick with <span class="docutils literal"><span class="pre">yamerl</span></span> even though its way of
+communicating errors is through exceptions. As it is able to parse different
+versions of YAML, as well as JSON, can also emit files (<span class="docutils literal"><span class="pre">yamler</span></span> is
+&#8220;read-only&#8221;) and is written in pure Erlang with no dependencies. <span class="docutils literal"><span class="pre">yamler</span></span>
+comes with its dependencies, the source code of libyaml, so there is no need
+to install or download anything to make it build.</p>
+<hr class="docutils" />
+<p>This is the <span class="docutils literal"><span class="pre">test.yaml</span></span> used above, I stole it from the <span class="docutils literal"><span class="pre">yamerl</span></span> README
+file:</p>
+<div class="highlight-python"><div class="highlight"><pre>---
+- application: kernel
+  version:     2.15.3
+  path:        /usr/local/lib/erlang/lib/kernel-2.15.3
+- application: stdlib
+  version:     1.18.3
+  path:        /usr/local/lib/erlang/lib/stdlib-1.18.3
+- application: sasl
+  version:     2.2.1
+  path:        /usr/local/lib/erlang/lib/sasl-2.2.1
+</pre></div>
+</div>
+</div>
+</div>
+
+    <div class="postmeta">
+        <div class="author">
+            <span>Posted by Alexander Panek</span>
+        </div>
+        
+        <div class="tags">
+            <span>
+                Tags:
+                <a href="../../../tags/elixir_functional_yaml.html">elixir functional yaml</a></span>
+        </div>
+        </div></article><aside class="sidebar"><section><div class="widget">
+    <h1>Recent Posts</h1>
+    <ul><li>
+            <a href="#">Parsing YAML in Elixir</a>
+        </li></ul>
+</div>
+</section><section><div class="widget" id="searchbox" role="search">
+    <h1><a href="#searchbox">Search</a></h1>
+    <form action="../../../search.html" method="get">
+        <input type="text" name="q" />
+        <button type="submit"><span class="fa fa-search"></span></button>
+    </form>
+</div></section></aside></div> <!-- #main --></div> <!-- #main-container -->
+
+        <div class="footer-container" role="contentinfo"><footer class="wrapper">&copy; Copyright 2015, Alexander Panek. Powered by <a href="http://www.tinkerer.me/">Tinkerer</a> and <a href="http://sphinx.pocoo.org/">Sphinx</a>.</footer></div> <!-- footer-container -->
+
+      </div> <!--! end of #container --><!--[if lt IE 7 ]>
+          <script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
+          <script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
+        <![endif]-->
+    </body>
+</html>
